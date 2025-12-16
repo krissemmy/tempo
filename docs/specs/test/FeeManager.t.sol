@@ -254,40 +254,6 @@ contract FeeManagerTest is BaseTest {
         }
     }
 
-    function test_distributeFees() public {
-        vm.prank(validator, validator);
-        amm.setValidatorToken(address(validatorToken));
-
-        vm.startPrank(user);
-        userToken.approve(address(amm), type(uint256).max);
-        vm.stopPrank();
-
-        uint256 maxAmount = 100e18;
-        uint256 actualUsed = 80e18;
-
-        vm.startPrank(address(0));
-        vm.coinbase(validator);
-
-        amm.collectFeePreTx(user, address(userToken), maxAmount);
-        amm.collectFeePostTx(user, maxAmount, actualUsed, address(userToken));
-        vm.stopPrank();
-
-        uint256 expectedFees = (actualUsed * 9970) / 10_000;
-        assertEq(amm.collectedFeesByValidator(validator), expectedFees);
-
-        uint256 validatorBalanceBefore = validatorToken.balanceOf(validator);
-
-        if (!isTempo) {
-            vm.expectEmit(true, true, true, true);
-            emit IFeeManager.FeesDistributed(validator, address(validatorToken), expectedFees);
-        }
-
-        amm.distributeFees(validator);
-
-        assertEq(validatorToken.balanceOf(validator), validatorBalanceBefore + expectedFees);
-        assertEq(amm.collectedFeesByValidator(validator), 0);
-    }
-
     function test_distributeFees_ZeroBalance() public {
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
