@@ -254,7 +254,43 @@ contract FeeManagerTest is BaseTest {
         }
     }
 
+    function test_distributeFees() public {
+        if (isTempo) return;
+
+        vm.prank(validator, validator);
+        amm.setValidatorToken(address(validatorToken));
+
+        vm.startPrank(user);
+        userToken.approve(address(amm), type(uint256).max);
+        vm.stopPrank();
+
+        uint256 maxAmount = 100e18;
+        uint256 actualUsed = 80e18;
+
+        vm.startPrank(address(0));
+        vm.coinbase(validator);
+
+        amm.collectFeePreTx(user, address(userToken), maxAmount);
+        amm.collectFeePostTx(user, maxAmount, actualUsed, address(userToken));
+        vm.stopPrank();
+
+        uint256 expectedFees = (actualUsed * 9970) / 10_000;
+        assertEq(amm.collectedFeesByValidator(validator), expectedFees);
+
+        uint256 validatorBalanceBefore = validatorToken.balanceOf(validator);
+
+        vm.expectEmit(true, true, true, true);
+        emit IFeeManager.FeesDistributed(validator, address(validatorToken), expectedFees);
+
+        amm.distributeFees(validator);
+
+        assertEq(validatorToken.balanceOf(validator), validatorBalanceBefore + expectedFees);
+        assertEq(amm.collectedFeesByValidator(validator), 0);
+    }
+
     function test_distributeFees_ZeroBalance() public {
+        if (isTempo) return;
+
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
 
@@ -267,6 +303,8 @@ contract FeeManagerTest is BaseTest {
     }
 
     function test_collectedFeesByValidator() public {
+        if (isTempo) return;
+
         vm.prank(validator, validator);
         amm.setValidatorToken(address(userToken));
 
@@ -315,6 +353,8 @@ contract FeeManagerTest is BaseTest {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_FeeSwap(uint256 actualUsed) public {
+        if (isTempo) return;
+
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
 
@@ -341,6 +381,8 @@ contract FeeManagerTest is BaseTest {
     }
 
     function testFuzz_SameToken_NoSwap(uint256 actualUsed) public {
+        if (isTempo) return;
+
         vm.prank(validator, validator);
         amm.setValidatorToken(address(userToken));
 
@@ -357,15 +399,15 @@ contract FeeManagerTest is BaseTest {
 
         (uint128 reserveUAfter, uint128 reserveVAfter) = amm.pools(poolId);
 
-        // No swap: reserves unchanged
         assertEq(reserveUAfter, reserveUBefore);
         assertEq(reserveVAfter, reserveVBefore);
 
-        // Full amount accumulated (no 0.30% fee)
         assertEq(amm.collectedFeesByValidator(validator), actualUsed);
     }
 
     function testFuzz_DistributeFees_ClearsBalance(uint256 actualUsed) public {
+        if (isTempo) return;
+
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
 
@@ -384,14 +426,14 @@ contract FeeManagerTest is BaseTest {
 
         amm.distributeFees(validator);
 
-        // Balance cleared
         assertEq(amm.collectedFeesByValidator(validator), 0);
 
-        // Validator received the fees
         assertEq(validatorToken.balanceOf(validator), validatorBalanceBefore + collectedBefore);
     }
 
     function testFuzz_Refund_Calculation(uint256 maxAmount, uint256 actualUsed) public {
+        if (isTempo) return;
+
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
 
